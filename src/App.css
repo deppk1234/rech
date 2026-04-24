@@ -36,3 +36,9 @@
     transform: rotate(360deg);
   }
 }
+
+/* App.css ya style tag mein daalein */
+input:focus {
+  outline: none;
+  border: 2px solid #1a73e8 !important;
+}
